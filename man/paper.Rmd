@@ -1,0 +1,392 @@
+---
+title: '`rEDM`: An R package for calculating price changes due to an exogenous shock.'
+author:
+- name: Jason Holderieath
+- orcid: 0000-0002-2845-101X
+- affiliation: 1
+date: "September 24, 2018"
+output:
+  html_document: default
+  pdf_document: default
+bibliography: paper.bib
+tags:
+- R
+- Economics
+- Equilibrium Displacement Model (EDM)
+- Partial Equilibrium
+affiliation:
+- name: Louisiana Tech University
+- index: 1
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Summary
+Fairly central to economic theory is the fact that if the quantity in the market is either higher or lower than expected, there will be a corresponding price response. If the supply and demand functions are known, finding the change in price is a trivial exercise. If the exact functions are unknown or if there are multiple commodities, the task of finding the price changes is more involved. 
+
+A partial equilibrium approach (as opposed to a general equilibrium approach) uses only the immediately relevant supply and demand function information to find the price change. If the supply and demand functions are unknown, but elasticities are known or can be estimated, an Equilibrium Displacement Model (EDM) can be used to calculate the price changes. Researchers using the EDM are generally expected to have derived their model and often use Microsoft Excel to calculate the price change. At best, a model is derived and specific equations are written in a program such as MATLAB. Both approaches are fraught with opportunties for careless errors.
+
+`rEDM` skips the deriving part of the exercise (though the analyst would need to understand this portion of the analysis to ensure that the model built by `rEDM` is the correct model to use) and builds a particular type of EDM. `rEDM` can build a linear market with a single vertical level. 
+
+For example, if one were analyzing impacts in corn, soybeans, wheat, rice, and peanuts markets from a type of wildlife damage, the analyst may choose to consider many locations for production (horizontal) and many markets (horizontal), but cannot use this model for multiple links in the value chain (vertical). If most of the damage happens on the farm, it would be appropriate for the analyst to consider farms as producers and all market players who purchase the product from the farmers as consumers (even if they do not directly consume the product). 
+
+# Mathematics and Example
+
+This section presents a mathematical representation of an EDM with an example and demonstrates `rEDM` along the way.
+
+For illustration purposes, we will assume the market discussed herein is for commodity $k$ at the farm gate. The commodities denoted by $k$ are corn, soybeans, wheat, rice, and peanuts. At the core of this relationship is the idea that there is a market where conditions of perfect competition for both buyers and sellers holds. A single national market demands each crop $k$. Derived demand for commodity $k$ is defined as:
+$$
+Q_k^D=D_k (P_k^D,C_k)	
+$$
+where $Q_k^d$ is the quantity demanded of product k and is a function of its own price ($P_k^d$) and an exogenous demand shock ($C_k$). Supply is defined for product $k$ in two regions ($\omega$):  states where no treatment occurs (NT) and a region with treatment (WT). 
+
+Equation 2 describes the structural relationship for quantity supplied for the various crops:
+$$
+Q_{k,\omega}^f=f_{k,\omega}(P_{corn}^f,P_{soy}^f,P_{wheat}^f,P_{rice}^f,P_{peanuts}^f,B_{k,\omega}).
+$$
+$Q_{k,\omega}^f$ is the quantity supplied of product $k$ in region $\omega$. $B_{k,\omega}$ is the exogenous shock to supply. 
+
+Export and import functions are similar to the implementation of those categories by \cite{Nogueira2015}. Exports ($X$) and imports ($I$) are modeled as functions of the world price $P_k^W$ for the respective commodities:
+$$
+Q_k^I=I_k (P_k^W)
+$$
+$$
+Q_k^X=X_k (P_k^W)
+$$
+A single price for all regions of the United States and the world was assumed.
+$$
+P_k^W=P_k.
+$$
+Market clearing conditions are found with the following equations:
+$$
+Q_k^D+Q_k^X-Q_k^I=Q_{k,WPR}^f+ Q_{k,AOS}^f
+$$
+and
+$$
+P_{k,\omega}^f=P_k^D=P_k \ \forall \ k \ and \ \omega .	
+$$
+The EDM is operationalized by the following steps. 
+
+The price elasticity of demand ($\varepsilon_k$)of product $k$ is defined as the percent change in quantity demanded divided by the percent change in price.
+$$
+\varepsilon_k = \frac{\% \Delta Q_k^D}{\% \Delta P_k}=\frac{\partial D}{\partial P_k^d} \times \frac{ P_k^d}{D}
+$$
+The equations are logged.
+$$
+\ln{Q_{k}^d} = \ln{ D_{k} (P_{k},C_{k})} 
+$$
+$$
+\ln{Q_{k,FRS}^s} =\ln{ S_{k,FRS} (P_{corn},P_{soy},P_{wheat},P_{rice},P_{peanuts},B_{k,FRS})}
+$$
+
+$$
+\ln{Q_{k,AOS}^s} = \ln{S_{k,AOS} (P_{corn},P_{soy},P_{wheat},P_{rice},P_{peanuts},B_{k,AOS})}
+$$
+They are then totally differentiated.
+
+$$
+d\ln{Q_{k}^d} = \frac{\partial Q_{k}^d}{\partial P_{corn}} d\ln{P_{k}} + \frac{\partial Q_{k}^s}{\partial C_{k}} d\ln{C_{k}} 
+$$
+
+$$
+d\ln{Q_{k,FRS}^s} = \frac{\partial Q_{k,FRS}^s}{\partial P_{corn}} d\ln{P_{corn}}+\dots+\frac{\partial Q_{k,FRS}^s}{\partial P_{Peanuts}} d\ln{P_{Peanuts}}+\frac{\partial Q_{k,FRS}^s}{\partial B_{k}} d\ln{B_{k}} 
+$$
+
+$$
+d\ln{Q_{k,AOS}^s} = \frac{\partial Q_{k,AOS}^s}{\partial P_{corn}} d\ln{P_{corn}}+\dots+\frac{\partial Q_{k,AOS}^s}{\partial P_{Peanuts}} d\ln{P_{Peanuts}}+\frac{\partial Q_{k,AOS}^s}{\partial B_{k}} d\ln{B_{k}}
+$$
+
+The relative change operator, $E$, elasticities of demand $(\eta_{Y,X})$, and supply $(\epsilon_{Y,X})$ are substituted.  The result is the following EDM.  First in a condensed form, 
+
+$$
+  EQ_{k}^{d}\  = \eta_{k,k}*EP_{k}^{d}+ EC_{k}  
+$$
+$$
+EQ_{k,\omega}^{s} = \varepsilon_{k,k,\omega}EP_{k,\omega}^{s}+ \sum_{k} \varepsilon_{k,j,\omega}EP_{k,\omega}^{s} + EB_{k,\omega}.
+$$
+
+The supply equations written individually with abbreviated crop names on the price changes:
+
+$EQ_{corn,AOS}^{s} = EP_c*\epsilon_{AOS,cc} + EP_p*\epsilon_{AOS,cp} +  EP_r*\epsilon_{AOS,cr} + EP_s*\epsilon_{AOS,cs} + EP_w*\epsilon_{AOS,cw} + B_{AOS,c}$
+   
+$EQ_{corn,FRS}^{s} = EP_c * \epsilon_{FRS,cc} + EP_p*\epsilon_{FRS,cp} +  EP_r*\epsilon_{FRS,cr} + EP_s*\epsilon_{FRS,cs} + EP_w*\epsilon_{FRS,cw} + B_{FRS,c}$
+
+$EQ_{soy,AOS}^{s} =EP_c * \epsilon_{AOS,sc} + EP_p*\epsilon_{AOS,sp} +  EP_r*\epsilon_{AOS,sr} + EP_s*\epsilon_{AOS,ss} + EP_w*\epsilon_{AOS,sw} + B_{AOS,s}$
+
+$EQ_{soy,FRS}^{s} = EP_c * \epsilon_{FRS,sc} + EP_p*\epsilon_{FRS,sp} +  EP_r*\epsilon_{FRS,sr} + EP_s*\epsilon_{FRS,ss} , EP_w*\epsilon_{FRS,sw} + B_{FRS,s}$
+
+$EQ_{wheat,AOS}^{s} = EP_c * \epsilon_{AOS,wc}+EP_p*\epsilon_{AOS_wp}+  EP_r*\epsilon_{AOS_wr}+EP_s*\epsilon_{AOS_ws}+EP_w*\epsilon_{AOS_ww} + B_{AOS_w}$  
+
+$EQ_{wheat,FRS}^{s} = EP_c * \epsilon_{FRS,wc} + EP_p *\epsilon_{FRS,wp} + EP_r * \epsilon_{FRS,wr} + EP_s * \epsilon_{FRS,ws} + EP_w * \epsilon_{FRS,ww} + B_{FRS,w}$
+
+$EQ_{rice,AOS}^{s} = EP_c*\epsilon_{AOS,rc}+EP_p*\epsilon_{AOS,rp}+ EP_r*\epsilon_{AOS,rr}+EP_s*\epsilon_{AOS,rs}+EP_w*\epsilon_{AOS,rw} + B_{AOS,r}$
+
+$EQ_{rice,FRS}^{s} = EP_c*\epsilon_{FRS,rc}+EP_p*\epsilon_{FRS,rp}+ EP_r*\epsilon_{FRS,rr}+EP_s*\epsilon_{FRS,rs}+EP_w*\epsilon_{FRS,rw} + B_{FRS,r}$
+
+$EQ_{peanut,AOS}^{s} = EP_c*\epsilon_{AOS,pc}+EP_p*\epsilon_{AOS,pp}+ EP_r*\epsilon_{AOS,pr}+EP_s*\epsilon_{AOS,ps}+EP_w*\epsilon_{AOS,pw} + B_{AOS,p}$
+
+$EQ_{peanut,FRS}^{s} = EP_c*\epsilon_{FRS,pc}+EP_p*\epsilon_{FRS,pp}+EP_r*\epsilon_{FRS,pr}+EP_s*\epsilon_{FRS,ps}+EP_w*\epsilon_{FRS,pw} + B_{FRS,p}$
+
+Market clearing conditions are not quite as straight forward to derive.   
+Again, market clearing conditions are:
+
+$$
+Q_{k}^d + Q_{k, export} - Q_{k,import} = Q_{k,FRS}^s + Q_{k,AOS}^s.
+$$
+
+
+Due to the addition involved, the desired effect of logging the equation will not work.  So we begin by moving exports and imports to the right and totally differentiating:
+
+$$
+dQ_{k}^d = - \frac{\partial Q_{k}^d}{\partial Q_{k,export}} dQ_{k,export} +  \frac{\partial Q_{k}^d}{\partial Q_{k,import}} dQ_{k,import}  + \frac{\partial Q_{k}^d}{\partial Q_{k,FRS}^s} dQ_{k,FRS}^s + \frac{\partial Q_{k}^d}{\partial Q_{k,AOS}^s} dQ_{k,AOS}^s.
+$$
+
+Instead of logging to get the effect of a relative change operator we multiply each term by one where, $1=x/x$.
+
+$$
+\frac{dQ_{k}^d}{dQ_{k}^d}*dQ_{k}^d = - \frac{Q_{k,export}}{Q_{k,export}}*\frac{\partial Q_{k}^d}{\partial Q_{k,export}} dQ_{k,export} +  \frac{Q_{k,import}}{Q_{k,import}}*\frac{\partial Q_{k}^d}{\partial Q_{k,import}} dQ_{k,import}  + \frac{Q_{k,FRS}^s}{Q_{k,FRS}^s}*\frac{\partial Q_{k}^d}{\partial Q_{k,FRS}^s} dQ_{k,FRS}^s + \frac{Q_{k,AOS}^s}{Q_{k,AOS}^s}*\frac{\partial Q_{k}^d}{\partial Q_{k,AOS}^s} dQ_{k,AOS}^s.
+$$
+
+By substitution, 
+
+$$
+\frac{\partial Q_{k}^d}{\partial Q_{k,export}}=\frac{\partial Q_{k}^d}{\partial Q_{k,import}}=\frac{\partial Q_{k}^d}{\partial Q_{k,FRS}^s}=\frac{\partial Q_{k}^d}{\partial Q_{k,AOS}^s}=1.
+$$
+
+We also substitute \emph{E} for $\frac{dQ_{k}^d}{Q_{k}^d}$ as the relative change operator for each term.  These substitutions leave:
+
+$$
+    dQ_{k}^d*EQ_{k}^d = - Q_{k,export}*EQ_{k,export}  +  Q_{k,import}*EQ_{k,import}  + Q_{k,FRS}^s*EQ_{k,FRS}^s + Q_{k,AOS}^s*EQ_{k,AOS}^s.
+$$
+We can then divide each side by ${Q_{k}^d}$ leaving:
+
+$$
+    EQ_{k}^d = \frac{- Q_{k,export}}{dQ_{k}^d}*EQ_{k,export}  +\frac{Q_{k,import}}{dQ_{k}^d}  *EQ_{k,import}  + \frac{Q_{k,FRS}^s}{dQ_{k}^d}*EQ_{k,FRS}^s + \frac{Q_{k,AOS}^s}{dQ_{k}^d}*EQ_{k,AOS}^s.
+$$
+
+Further simplifying, replace $\frac{Q_{k,import}}{Q_{k}^d}$ with $s_{import,k}$, $\frac{Q_{k,export}}{Q_{k}^d}$ with $s_{export,k}$, $\frac{Q_{k,FRS}^s}{Q_{k}^d}$ with $s_{FRS,k}$ and $\frac{Q_{k,AOS}^s}{Q_{k}^d}$ with $s_{AOS,k}$:
+
+$$
+    EQ_{k}^d = - s_{export,k}*EQ_{k,export}  +s_{import,k}  *EQ_{k,import}  + s_{FRS,k}*EQ_{k,FRS}^s + s_{AOS,k}*EQ_{k,AOS}^s.
+$$
+
+The single price assumption stated earlier is maintained.
+
+$$
+    EP_{k,\omega}^{s} = EP_{k}^{d} = EP_{k} \ \forall \ \ {k}.
+$$
+ 
+The individual supply and demand equations can then be substituted into the equilibrium condition equation.  This results in a system of five equations to be solved for price changes.
+
+`rEDM` picks up at this point. First, establish your products, consumers, and producers.
+```{r Load libraries, declare crops and markets, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(rEDM)
+library(rSymPy)
+library(tidyverse)
+crops <- c("corn","soy","wheat",'rice','peanut')
+markets <- c("domestic","export")
+suppliers <- c("imports","AOS","FRS")
+```
+
+The algebraic backbone of `rEDM` is `rSymPy`. Variables must be created and passed to `rSymPy`. The wrapper for several smaller functions to generate the variables is:
+```{r generate variables}
+variables <- gen_var(crops,markets,suppliers)
+```
+It will be advantageous to keep price changes and exogoenous shocks seperate from elasticities and weights.
+```{r generate price changes and shocks}
+EP <- gen_price_chg(crops)
+EC <- gen_shock(crops, place=markets, side = "C")
+EB <- gen_shock(crops, place=suppliers, side = "B")
+```
+The next step is to pass these variables to `SymPy`. It is not technically required to `sympyStart()`, however, it can be helpful to avoid [errors](https://stackoverflow.com/questions/35419547/error-while-using-rsympy).
+```{r pass to sympy}
+sympyStart()
+for (i in EP) {
+  tmp <- paste0(noquote(i)," <- Var('",i,"')")
+  eval(parse(text=tmp))
+}
+for (i in EB) {
+  tmp <- paste0(noquote(i)," <- Var('",i,"')")
+  eval(parse(text=tmp))
+}
+for (i in EC) {
+  tmp <- paste0(noquote(i)," <- Var('",i,"')")
+  eval(parse(text=tmp))
+}
+for (i in variables) {
+    tmp <- paste0(noquote(i)," <- Var('",i,"')")
+    eval(parse(text=tmp))
+}
+```
+The next step is to build the equations. Each equation is assigned a location in a list `eqns`.
+```{r create equations and pass to sympy}
+eqns <- gen_eq(variables,crops,markets,suppliers, EC, EB)
+eqns_to_sympy(eqns)
+sympy('eqns = [corn,soy,wheat,rice,peanut]')
+```
+At this point, the system of equations is fully defined and ready to have values substituted. In this example, there are no consumption shocks. A tibble of shocks is created and values of zero provided.
+```{r consumption shocks}
+ECL <- tibble(EC) %>%
+  rename(name = EC)
+ECL$val <- 0
+ECL
+```
+The shocks are on the production side of the equilibrium conditions. In particular, they are in the `AOS` region in this example.
+```{r production shocks}
+EBL <- tibble(EB) %>%
+  rename(name = EB)
+EBL$val <- c(0,  -.01, 0,
+             0,  -.02, 0,
+             0,  -.15, 0,
+             0, -.001, 0,
+             0,   -.1, 0)
+EBL
+```
+Elasticities and weights must be provided as matrices with specified dimnames.
+```{r elasticities and weights}
+#elasticities
+e_domestic <- matrix(data = c(
+  -0.696,  -0.289, -0.172, -0.024, -0.094,
+  -0.382,  -0.536, -0.046, -0.021,	0.031,
+  -0.191,	  0.108, -0.235, -0.008,  0.127,
+  -0.511,  -0.323, -0.159, -0.157,   0.04,
+  -1.665,	  0.498,  0.591,  0.056, -0.202
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+e_AOS <- matrix(data = c(
+  0.201,	-0.108,	-0.004,	0,	0,
+  -0.167,	0.153,	-0.005,	-0.001,	0,
+  -0.155,	-0.110,	0.201,	-0.001,	0,
+  -0.164,	-0.117,	-0.006,	0.238,	0,
+  0,	0,	0,	0,	0.350
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+e_FRS <- matrix(data = c(
+  0.326,	-0.036,	-0.003,	-0.034,	0,
+  -0.031,	0.191,	-0.008,	-0.095,	0,
+  -0.016,	-0.047,	0.331,	-0.045,	0,
+  -0.015,	-0.050,	-0.004,	0.473,	0,
+  0,	0,	0,	0,	0.35
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+e_export <- diag(x=1,nrow = length(crops),ncol = length(crops),
+                 names = TRUE)
+dimnames(e_export) <- list(crops,crops)
+
+e_imports <- diag(x=1,nrow = length(crops),ncol = length(crops),
+                  names = TRUE)
+dimnames(e_imports) <- list(crops,crops)
+
+#consumption weights
+
+w_domestic <- diag(x = 1,nrow = length(crops),ncol = length(crops),
+                   names = TRUE)
+dimnames(w_domestic) = list(crops,crops)
+
+w_export <- matrix(data = c(
+  0.14,	0,	0,	0,	0,
+  0,	0.83,	0,	0,	0,
+  0,	0,	0.80,	0,	0,
+  0,	0,	0,	0.84,	0,
+  0,	0,	0,	0,	0.23
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+#supply weights
+ss_AOS <- matrix(data = c(
+  0.94,	0,	0,	0,	0,
+  0,	0.88,	0,	0,	0,
+  0,	0,	0.90,	0,	0,
+  0,	0,	0,	0.24,	0,
+  0,	0,	0,	0,	0.03
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+ss_FRS <- matrix(data = c(
+  0.06,	0,	0,	0,	0,
+  0,	0.12,	0,	0,	0,
+  0,	0,	0.10,	0,	0,
+  0,	0,	0,	0.76,	0,
+  0,	0,	0,	0,	0.97
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+
+ss_imports <- matrix(data = c(
+  0.01,	0,	0,	0,	0,
+  0,	0.02,	0,	0,	0,
+  0,	0,	0.12,	0,	0,
+  0,	0,	0,	0.17,	0,
+  0,	0,	0,	0,	0.03
+),nrow = length(crops),ncol = length(crops),byrow = TRUE,
+dimnames = list(crops,crops))
+```
+With data entered, it is time to generate a tibble to use to send all of the variable values to `SymPy`. The tibble is then used to paste together a string that can be used to pass the values. The `eval_parse` function simply parses and then evaluates a string in the global environment (`eval(parse(text = string), envir=.GlobalEnv)`). 
+```{r pass values to sympy}
+v <- as.tibble(unlist(variables)) %>%
+  rename(name = value)
+v$val <- val_look_up(v$name)
+
+v <- rbind(v,ECL)%>%
+  rbind(EBL)
+
+string <- v_to_parse(name = v$name, value = v$val)
+string_list <- list()
+for (c in crops) {
+  string_list[c] <-   eval_parse_crops(c,t=string)
+}
+
+for (c in crops) {
+  eval_parse(string_list[c])
+}
+```
+`Sympy` has functions that can be used at this point directly. For example, one could print the substituted equations in LaTeX.
+```{r pretty print equations}
+sympy('latex(corn)')
+sympy('latex(soy)')
+sympy('latex(wheat)')
+sympy('latex(rice)')
+sympy('latex(peanut)')
+```
+Most importantly, the `solve` command can be used to find the changes in prices implied by the exogenous shocks.
+```{r solve for price change}
+sympy('solve(eqns, [EP_corn, EP_soy, EP_wheat, EP_rice, EP_peanut])')
+```
+
+
+
+
+
+
+
+
+
+
+
+# Citations
+
+# References
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
