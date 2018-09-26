@@ -240,6 +240,19 @@ gen_var <- function(crops,markets,suppliers) {
   variables <- c(mkt_weight,sup_weight,me,se)
 }
 #gen equations
+#' Title
+#'
+#' @param variables
+#' @param crops
+#' @param markets
+#' @param suppliers
+#' @param EC
+#' @param EB
+#'
+#' @return
+#' @export
+#'
+#' @examples
 gen_eq <- function(variables,crops,markets,suppliers,EC,EB) {
   tick <- 0
   temp <- list()
