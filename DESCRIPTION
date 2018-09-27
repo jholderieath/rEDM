@@ -1,7 +1,7 @@
 Package: rEDM
 Type: Package
 Title: Builds and Evaluates Linear Equilibrium Displacement Models
-Version: 0.1.0
+Version: 0.1.01
 Author: Jason Holderieath
 Maintainer: Jason Holderieath <jholderieath@gmail.com>
 Description: rEDM uses provided input to specify and evaluate equilibrium displacement models.
